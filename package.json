@@ -1,7 +1,7 @@
 {
 	"name": "autoclosetabs",
 	"displayName": "Auto Close Tabs",
-	"icon": "Zwyx-220x220-rounded.png",
+	"icon": "res/Zwyx-220x220-rounded.webp",
 	"description": "Automatically close unused tabs.",
 	"version": "1.2.0",
 	"publisher": "zwyx",
@@ -109,6 +109,7 @@
 		"run-in-browser": "vscode-test-web --browserType=chromium --extensionDevelopmentPath=. .",
 		"lint": "eslint src --report-unused-disable-directives --max-warnings 0",
 		"prettier": "prettier -w .",
+		"postversion": "res/convert-annotated-tag-to-lightweight.sh",
 		"package": "vsce package",
 		"vscode:publish": "vsce publish",
 		"openvsx:publish": "ovsx publish"
