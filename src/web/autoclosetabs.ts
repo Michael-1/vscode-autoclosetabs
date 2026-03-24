@@ -198,7 +198,12 @@ export const closeTabs = (maxTabAgeInHours = 0) => {
 		if (numberOfTabsExtra < 1) {
 			lg("No tabs in extra");
 			return;
+		} else {
+			lg(`${numberOfTabsExtra.toLocaleString()} tabs in extra`);
 		}
+
+		lg("Group tabs:");
+		lg(tabGroup.tabs.map((tab) => ({ ...tab, group: undefined })));
 
 		const closableTabsByUri = Object.fromEntries(
 			tabGroup.tabs
@@ -240,6 +245,7 @@ export const closeTabs = (maxTabAgeInHours = 0) => {
 		Object.entries(groupTabTimeCounters)
 			.filter(
 				([, timeCounter]) =>
+					maxTabAgeInHours === 0 ||
 					(timeCounter * INTERVAL_IN_MINUTES) / 60 > maxTabAgeInHours,
 			)
 			.filter(([uri]) => closableTabUris.includes(uri))
