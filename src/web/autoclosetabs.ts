@@ -35,14 +35,45 @@ let closedTabs: {
 
 let webview: vscode.WebviewPanel | undefined;
 
+/**
+ * Returns the key identifying a tab in the time counters,
+ * or undefined for tab types which should never be closed automatically
+ * (e.g. terminals).
+ */
+const getTabKey = (tab: vscode.Tab): string | undefined => {
+	const input = tab.input;
+
+	if (input instanceof vscode.TabInputText) {
+		return input.uri.toString();
+	}
+
+	if (input instanceof vscode.TabInputTextDiff) {
+		return input.modified.toString();
+	}
+
+	if (input instanceof vscode.TabInputCustom) {
+		return `custom:${input.uri.toString()}`;
+	}
+
+	if (input instanceof vscode.TabInputNotebook) {
+		return `notebook:${input.uri.toString()}`;
+	}
+
+	if (input instanceof vscode.TabInputWebview) {
+		return `webview:${input.viewType}:${tab.label}`;
+	}
+
+	return undefined;
+};
+
 export const resetTabTimeCounter = (tab: vscode.Tab) => {
 	lg("Resetting tab time counter...");
 
-	if (!(tab.input instanceof vscode.TabInputText)) {
+	const tabUri = getTabKey(tab);
+
+	if (tabUri === undefined) {
 		return;
 	}
-
-	const tabUri = tab.input.uri.toString();
 
 	lg(tabUri);
 
@@ -62,11 +93,11 @@ export const resetTabTimeCounter = (tab: vscode.Tab) => {
 export const incrementTabTimeCounter = (tab: vscode.Tab) => {
 	lg("Incrementing tab time counter...");
 
-	if (!(tab.input instanceof vscode.TabInputText)) {
+	const tabUri = getTabKey(tab);
+
+	if (tabUri === undefined) {
 		return;
 	}
-
-	const tabUri = tab.input.uri.toString();
 
 	lg(tabUri);
 
@@ -84,11 +115,11 @@ export const incrementTabTimeCounter = (tab: vscode.Tab) => {
 export const removeTabTimeCounter = (tab: vscode.Tab) => {
 	lg("Removing tab time counter...");
 
-	if (!(tab.input instanceof vscode.TabInputText)) {
+	const tabUri = getTabKey(tab);
+
+	if (tabUri === undefined) {
 		return;
 	}
-
-	const tabUri = tab.input.uri.toString();
 
 	lg(tabUri);
 
@@ -110,11 +141,11 @@ export const createTabTimeCounters = (context: vscode.ExtensionContext) => {
 
 	vscode.window.tabGroups.all.forEach((tabGroup) => {
 		tabGroup.tabs.forEach((tab) => {
-			if (!(tab.input instanceof vscode.TabInputText)) {
+			const tabUri = getTabKey(tab);
+
+			if (tabUri === undefined) {
 				return;
 			}
-
-			const tabUri = tab.input.uri.toString();
 
 			const tabTimeCounter =
 				storedTabTimeCounters[tab.group.viewColumn]?.[tabUri];
@@ -209,18 +240,12 @@ export const closeTabs = (maxTabAgeInHours = 0) => {
 			tabGroup.tabs
 				.filter(
 					(tab) =>
-						tab.input instanceof vscode.TabInputText &&
+						getTabKey(tab) !== undefined &&
 						!tab.isPinned &&
 						!tab.isDirty &&
 						!tab.isActive,
 				)
-				.map((tab) => [
-					// Bloody TypeScript...
-					tab.input instanceof vscode.TabInputText
-						? tab.input.uri.toString()
-						: "",
-					tab,
-				]),
+				.map((tab) => [getTabKey(tab) ?? "", tab]),
 		);
 
 		const closableTabUris = Object.keys(closableTabsByUri);
