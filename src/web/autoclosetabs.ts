@@ -43,7 +43,7 @@ const getTabId = (tab: vscode.Tab): string | undefined => {
 	}
 
 	if (input instanceof vscode.TabInputTextDiff) {
-		return `diff:${input.modified.toString()}`;
+		return `diff:${input.original.toString()}:${input.modified.toString()}`;
 	}
 
 	if (input instanceof vscode.TabInputCustom) {
