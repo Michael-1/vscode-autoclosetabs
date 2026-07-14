@@ -11,6 +11,7 @@
 			"debugWebWorkerHost": true,
 			"request": "launch",
 			"args": [
+				"${workspaceFolder}/../<a-project-to-test-the-extension>",
 				"--extensionDevelopmentPath=${workspaceFolder}",
 				"--extensionDevelopmentKind=web"
 			],
