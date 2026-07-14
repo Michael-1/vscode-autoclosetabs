@@ -21,7 +21,7 @@ interface TabTimeCounters {
 		 *   - incremented at every interval while the tab is opened;
 		 *   - removed when the tab is closed
 		 */
-		[tabUri: string]: number;
+		[tabId: string]: number;
 	};
 }
 
@@ -35,12 +35,7 @@ let closedTabs: {
 
 let webview: vscode.WebviewPanel | undefined;
 
-/**
- * Returns the key identifying a tab in the time counters,
- * or undefined for tab types which should never be closed automatically
- * (e.g. terminals).
- */
-const getTabKey = (tab: vscode.Tab): string | undefined => {
+const getTabId = (tab: vscode.Tab): string | undefined => {
 	const input = tab.input;
 
 	if (input instanceof vscode.TabInputText) {
@@ -63,21 +58,22 @@ const getTabKey = (tab: vscode.Tab): string | undefined => {
 		return `webview:${input.viewType}:${tab.label}`;
 	}
 
+	// Tab might be a terminal, or an unknown kind of tab
 	return undefined;
 };
 
 export const resetTabTimeCounter = (tab: vscode.Tab) => {
 	lg("Resetting tab time counter...");
 
-	const tabUri = getTabKey(tab);
+	const tabId = getTabId(tab);
 
-	if (tabUri === undefined) {
+	if (tabId === undefined) {
 		return;
 	}
 
-	lg(tabUri);
+	lg(tabId);
 
-	if (tabUri.startsWith("untitled:")) {
+	if (tabId.startsWith("untitled:")) {
 		return;
 	}
 
@@ -85,7 +81,7 @@ export const resetTabTimeCounter = (tab: vscode.Tab) => {
 		tabTimeCounters[tab.group.viewColumn] = {};
 	}
 
-	tabTimeCounters[tab.group.viewColumn][tabUri] = 0;
+	tabTimeCounters[tab.group.viewColumn][tabId] = 0;
 
 	lg(tabTimeCounters);
 };
@@ -93,21 +89,21 @@ export const resetTabTimeCounter = (tab: vscode.Tab) => {
 export const incrementTabTimeCounter = (tab: vscode.Tab) => {
 	lg("Incrementing tab time counter...");
 
-	const tabUri = getTabKey(tab);
+	const tabId = getTabId(tab);
 
-	if (tabUri === undefined) {
+	if (tabId === undefined) {
 		return;
 	}
 
-	lg(tabUri);
+	lg(tabId);
 
-	const tabTimeCounter = tabTimeCounters[tab.group.viewColumn]?.[tabUri];
+	const tabTimeCounter = tabTimeCounters[tab.group.viewColumn]?.[tabId];
 
 	if (typeof tabTimeCounter !== "number") {
 		return;
 	}
 
-	tabTimeCounters[tab.group.viewColumn][tabUri] = tabTimeCounter + 1;
+	tabTimeCounters[tab.group.viewColumn][tabId] = tabTimeCounter + 1;
 
 	lg(tabTimeCounters);
 };
@@ -115,16 +111,16 @@ export const incrementTabTimeCounter = (tab: vscode.Tab) => {
 export const removeTabTimeCounter = (tab: vscode.Tab) => {
 	lg("Removing tab time counter...");
 
-	const tabUri = getTabKey(tab);
+	const tabId = getTabId(tab);
 
-	if (tabUri === undefined) {
+	if (tabId === undefined) {
 		return;
 	}
 
-	lg(tabUri);
+	lg(tabId);
 
 	if (tabTimeCounters[tab.group.viewColumn]) {
-		delete tabTimeCounters[tab.group.viewColumn][tabUri];
+		delete tabTimeCounters[tab.group.viewColumn][tabId];
 	}
 
 	lg(tabTimeCounters);
@@ -141,21 +137,21 @@ export const createTabTimeCounters = (context: vscode.ExtensionContext) => {
 
 	vscode.window.tabGroups.all.forEach((tabGroup) => {
 		tabGroup.tabs.forEach((tab) => {
-			const tabUri = getTabKey(tab);
+			const tabId = getTabId(tab);
 
-			if (tabUri === undefined) {
+			if (tabId === undefined) {
 				return;
 			}
 
 			const tabTimeCounter =
-				storedTabTimeCounters[tab.group.viewColumn]?.[tabUri];
+				storedTabTimeCounters[tab.group.viewColumn]?.[tabId];
 
 			if (typeof tabTimeCounter === "number") {
 				if (!tabTimeCounters[tab.group.viewColumn]) {
 					tabTimeCounters[tab.group.viewColumn] = {};
 				}
 
-				tabTimeCounters[tab.group.viewColumn][tabUri] = tabTimeCounter;
+				tabTimeCounters[tab.group.viewColumn][tabId] = tabTimeCounter;
 			} else {
 				resetTabTimeCounter(tab);
 			}
@@ -236,19 +232,19 @@ export const closeTabs = (maxTabAgeInHours = 0) => {
 		lg("Group tabs:");
 		lg(tabGroup.tabs.map((tab) => ({ ...tab, group: undefined })));
 
-		const closableTabsByUri = Object.fromEntries(
+		const closableTabsById = Object.fromEntries(
 			tabGroup.tabs
 				.filter(
 					(tab) =>
-						getTabKey(tab) !== undefined &&
+						getTabId(tab) !== undefined &&
 						!tab.isPinned &&
 						!tab.isDirty &&
 						!tab.isActive,
 				)
-				.map((tab) => [getTabKey(tab) ?? "", tab]),
+				.map((tab) => [getTabId(tab) ?? "", tab]),
 		);
 
-		const closableTabUris = Object.keys(closableTabsByUri);
+		const closableTabIds = Object.keys(closableTabsById);
 
 		const groupTabTimeCounters = tabTimeCounters[tabGroup.viewColumn];
 
@@ -273,14 +269,14 @@ export const closeTabs = (maxTabAgeInHours = 0) => {
 					maxTabAgeInHours === 0 ||
 					(timeCounter * INTERVAL_IN_MINUTES) / 60 > maxTabAgeInHours,
 			)
-			.filter(([uri]) => closableTabUris.includes(uri))
-			.map(([uri, timeCounter]) => [timeCounter, uri])
+			.filter(([tabId]) => closableTabIds.includes(tabId))
+			.map(([tabId, timeCounter]) => [timeCounter, tabId])
 			.sort()
 			.reverse()
-			.map(([timeCounter, uri]) => [uri, timeCounter])
+			.map(([timeCounter, tabId]) => [tabId, timeCounter])
 			.slice(0, numberOfTabsExtra)
-			.forEach(([uri]) => {
-				const tab = closableTabsByUri[uri];
+			.forEach(([tabId]) => {
+				const tab = closableTabsById[tabId];
 				const label = tab.label;
 
 				lg(`Group ${tabGroup.viewColumn.toString()} - Closing tab ${label}`);
